@@ -17,6 +17,7 @@ public class Main {
 			String build = "";
 			for (String value : values) {
 				build += value + " ";
+				
 			}
 			System.out.println(build);
 		}
