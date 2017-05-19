@@ -5,13 +5,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class KGUEZ implements Algorithm{
+public class KGUEZS implements Algorithm{
 	
 	private int[] classes;
 	private Map calculatedValue;
 	private List calculatedList;
 	
-	public KGUEZ() {
+	public KGUEZS() {
 		this.calculatedValue = new HashMap<Integer, Integer>();
 	}
 	
@@ -21,7 +21,7 @@ public class KGUEZ implements Algorithm{
 	}
 	
 	@Override
-	public List calculate(Object[] values) {		
+	public Map calculate(Object[] values) {		
 		for(int i = 1; i < values.length; i++){
 			double oldValue = values[i-1] instanceof String? Double.valueOf((String)values[i-1]) : (double)values[i-1], 
 				   newValue = values[i-1] instanceof String? Double.valueOf((String)values[i]) : (double)values[i];
@@ -32,8 +32,8 @@ public class KGUEZ implements Algorithm{
 				calculatedValue.put((int)crossedClass, getNewValueForClass((int)crossedClass));
 			}
 		}		
-		calculatedList = getListFromCalculatedValue();
-		return calculatedList;	
+	//	calculatedList = getListFromCalculatedValue();
+		return calculatedValue;	
 	}
 	
 	private Bounds getCurrentBounds(double oldValue, double newValue){
@@ -63,7 +63,7 @@ public class KGUEZ implements Algorithm{
 		return (int)calculatedValue.getOrDefault(currentClass, 0) + 1;
 	}
 	
-	private List getListFromCalculatedValue(){
+	public List getListFromCalculatedValue(){
 		List<List> calculatedList = new ArrayList<>();
 		for(Object key : calculatedValue.keySet()){
 			List currentKeyList = getCurrentKeyList((int)key);
