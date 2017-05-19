@@ -42,7 +42,7 @@ public class Main implements InlineUserClassWorkerIF {
 			values.add(inputChannel.getValueAsString(i));
 		}
 
-		Algorithm alg = new KGUEZ();
+		KGUEZAlgorithm alg = new KGUEZAlgorithm();
 		alg.setCalculatedClasses(classes);
 		Map<Integer, Integer> calculatedMap = (Map<Integer, Integer>) alg.calculate(values.toArray());
 		for (int key : calculatedMap.keySet()) {
@@ -56,22 +56,21 @@ public class Main implements InlineUserClassWorkerIF {
 		parent = null;
 	}
 	
-	private class KGUEZ implements Algorithm{
+	private class KGUEZAlgorithm{
 		
 		private int[] classes;
 		private Map calculatedValue;
 		private List calculatedList;
 		
-		public KGUEZ() {
+		public KGUEZAlgorithm() {
 			this.calculatedValue = new HashMap<Integer, Integer>();
 		}
 		
-		@Override
 		public void setCalculatedClasses(int[] classes) {
 			this.classes = classes;
 		}
 		
-		@Override
+		
 		public Map calculate(Object[] values) {		
 			for(int i = 1; i < values.length; i++){
 				double oldValue = values[i-1] instanceof String? Double.valueOf((String)values[i-1]) : (double)values[i-1], 
