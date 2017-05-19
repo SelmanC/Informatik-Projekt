@@ -5,22 +5,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class KGUEZS implements Algorithm{
+public class KGUEZ{
 	
 	private int[] classes;
 	private Map calculatedValue;
 	private List calculatedList;
 	
-	public KGUEZS() {
+	public KGUEZ() {
 		this.calculatedValue = new HashMap<Integer, Integer>();
 	}
 	
-	@Override
 	public void setCalculatedClasses(int[] classes) {
 		this.classes = classes;
 	}
 	
-	@Override
 	public Map calculate(Object[] values) {		
 		for(int i = 1; i < values.length; i++){
 			double oldValue = values[i-1] instanceof String? Double.valueOf((String)values[i-1]) : (double)values[i-1], 
