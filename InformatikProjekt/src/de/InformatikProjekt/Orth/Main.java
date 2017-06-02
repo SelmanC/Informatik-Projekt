@@ -39,7 +39,7 @@ public class Main implements InlineUserClassWorkerIF{
            values.add(inputChannel.getValueAsString(i));
         }       
         
-		Algorithm alg = new Algorithm();
+		KGUEZ alg = new KGUEZ();
 		alg.setCalculatedClasses(classes);
 		Map<Integer, Integer> calculatedMap = (Map<Integer, Integer>) alg.calculate(values.toArray());
 		for (int key : calculatedMap.keySet()) {
