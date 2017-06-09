@@ -20,9 +20,12 @@ public class Main implements InlineUserClassWorkerIF {
 
 	private InlineUserClassParentIF parent = null;
 
-	private static int[] classes = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	private static int[] classes;
 	private Map calculatedValue = null;
 	private List<String> lines = null;
+	private static double maxValue = 0;
+	private static double minValue = 0;
+	private static final int CLASS_RANGE = 5;
 
 	@Override
 	public void init(InlineUserClassParentIF parent) {
@@ -38,20 +41,19 @@ public class Main implements InlineUserClassWorkerIF {
 
 		DoubleChannel resultChannel = (DoubleChannel) resultObjects[0];
 		AbstractNumericChannel inputChannel = (DoubleChannel) inputObjects[0];
-		List<String> values = new ArrayList<>();
 		resultChannel.clearError();
 
-		if (resultObjects[0] instanceof DoubleChannel == false || resultChannel == null || inputChannel == null) {
+		if (resultChannel == null || inputChannel == null) {
 			return;
 		}
+		
+		double[] values = getValues(inputChannel);	
 
-		for (int i = 0; i < inputChannel.getUsedSize(); i++) {
-			values.add(inputChannel.getValueAsString(i));
-		}
+		classes = getClasses();
+		
+		Map<Integer, Integer> calculatedMap = (Map<Integer, Integer>) calculate(values);
 
-		Map<Integer, Integer> calculatedMap = (Map<Integer, Integer>) calculate(values.toArray());
-
-		resultChannel.adaptMaxValues(calculatedMap.size());
+		resultChannel.adaptMaxValues(10);
 
 		lines.add("Calculated");
 		Path file = Paths.get("C:/Users/nabiz_000/Desktop/log1.txt");
@@ -61,13 +63,15 @@ public class Main implements InlineUserClassWorkerIF {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
 		lines.clear();
 		for (int key : calculatedMap.keySet()) {
-			double value = (double)calculatedMap.get(key);
-			lines.add(key + ":" + (double)value);
+			double value = (double) calculatedMap.get(key);
+			lines.add(key + ":" + (double) value);
 			resultChannel.setValue(key, value);
 		}
 		
+		lines.add("KeySetCOunt:" + calculatedMap.size());
 		Path file2 = Paths.get("C:/Users/nabiz_000/Desktop/log2.txt");
 		try {
 			Files.write(file2, lines, Charset.forName("UTF-8"));
@@ -75,13 +79,13 @@ public class Main implements InlineUserClassWorkerIF {
 			// TODO Auto-generated catch block
 			f.printStackTrace();
 		}
-		
-		resultChannel.setUsedSize(calculatedMap.size(), true);
-		calculatedValue= null;
+
+		resultChannel.setUsedSize(10, true);
+		calculatedValue = null;
 		lines = null;
 	}
 
-	public Map<Integer, Integer> test(Object[] values) {
+	public Map<Integer, Integer> test(double[] values) {
 		return (Map<Integer, Integer>) calculate(values);
 	}
 
@@ -89,57 +93,87 @@ public class Main implements InlineUserClassWorkerIF {
 	public void dispose() {
 		parent = null;
 	}
+	
+	private double[] getValues(AbstractNumericChannel inputChannel){
+		double[] values = new double[inputChannel.getUsedSize()];
+		
+		for (int i = 0; i < inputChannel.getUsedSize(); i++) {
+			String inputValue = inputChannel.getValueAsString(i).replace(".", "").replace(',', '.');
+			if(inputValue.isEmpty()){
+				continue;
+			}
 
-	private Map calculate(Object[] values) {
+			double currentValue = Double.valueOf(inputValue);
+			if (i == 0) {
+				maxValue = currentValue;
+				minValue = currentValue;
+			} else {
+				isMaxOrMinValue(currentValue);
+			}
+			values[i]= currentValue;
+		}
+		return values;
+	}
+
+	private void isMaxOrMinValue(double inputValue) {
+		if (inputValue > maxValue) {
+			maxValue = inputValue;
+		}
+		if (inputValue < minValue) {
+			minValue = inputValue;
+		}
+	}
+
+	private int[] getClasses() {
+		int maxClassCount = (int)((maxValue - minValue) / CLASS_RANGE);
+		lines.add("macClassC:" + maxClassCount);
+		int[] classes = new int[maxClassCount];
+		classes[0] = (int) (minValue - 1);
+		classes[maxClassCount - 1] =(int) maxValue;
+		
+		int currentValue = (int)minValue- 1;
+		for(int i = 0; i < maxClassCount; i++){
+			currentValue = currentValue + CLASS_RANGE;
+			lines.add(currentValue+ ",");
+			classes[i] = currentValue;
+		}
+		lines.add(";max:" + maxValue);
+		return classes;
+	}
+
+	private Map calculate(double[] values) {
 		String line = "";
 		for (int i = 1; i < values.length; i++) {
 			lines.add(line);
 			line = "";
-			if (values[i - 1].toString().isEmpty() || values[i].toString().isEmpty()) {
-				continue;
-			}
-			String oldString = values[i - 1].toString()
-					.replace(".", "")
-					.replace(',', '.');
-			String newString = values[i].toString()
-					.replace(".", "")
-					.replace(',', '.');
-			
-			line+= "oldStr:" + oldString + ";newStr:" + newString + ";";
 
-			if (oldString.isEmpty() || newString.isEmpty()) {
-				continue;
-			}
-
-			double oldValue = values[i - 1] instanceof String ? Double.valueOf(oldString) : (double) values[i - 1],
-					newValue = values[i] instanceof String ? Double.valueOf(newString) : (double) values[i];
+			double oldValue = values[i - 1], newValue = values[i];
 			int[] oldBounds = getCurrentBounds(oldValue, newValue);
-			
-			line+= "oldValue:" + oldValue + "newValue:"+ newValue +";";
+
+			line += "oldValue:" + oldValue + "newValue:" + newValue + ";";
 			if (oldBounds == null)
 				continue;
-			
-			line+= "oldBounds:" + oldBounds[0] + "," + oldBounds[1] + "," + oldBounds[2] +  ";";
+
+			line += "oldBounds:" + oldBounds[0] + "," + oldBounds[1] + "," + oldBounds[2] + ";";
 			Map<Integer, Integer> newClassCrossed = getCrossedClassesAfterUpperBound(oldBounds[2], newValue);
 			line += "ClassCrossed:";
-			for (Object crossedClass : newClassCrossed.keySet()) {
-				int newValueForClass = getNewValueForClass((int) crossedClass); 
-				calculatedValue.put((int) crossedClass, newValueForClass);
-				line+= crossedClass.toString() + "-" + newValueForClass + ",";
+			for (Integer crossedClass : newClassCrossed.keySet()) {
+				int newValueForClass = getNewValueForClass(crossedClass);
+				calculatedValue.put(crossedClass, newValueForClass);
+				line += crossedClass.toString() + "-" + newValueForClass + ",";
 			}
 		}
-		// calculatedList = getListFromCalculatedValue();
 		return calculatedValue;
 	}
 
 	private int[] getCurrentBounds(double oldValue, double newValue) {
-		if(oldValue < classes[0] && newValue >= classes[0]){
-			return new int[] { (int) classes[1], (int) classes[0], 0};
+		if (oldValue < classes[0] && newValue >= classes[0]) {
+			return new int[] {classes[1], classes[0], 0 };
 		}
 		for (int i = 1; i < classes.length; i++) {
-			int upperBound = classes[i], lowerBound = classes[i - 1];
+			double upperBound = classes[i], lowerBound = classes[i - 1];
 			if (lowerBound <= oldValue && oldValue < upperBound) {
-				return new int[] { (int) classes[i], (int) classes[i - 1], i };
+				return new int[] {classes[i], classes[i - 1], i };
 			}
 		}
 		return null;

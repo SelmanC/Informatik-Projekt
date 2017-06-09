@@ -13,7 +13,7 @@ public class MainTest {
 	@Test
 	public void test() {
 		Main main = new Main();
-		String[] values = new String[]{"1", "2", "-5", "3", "4", "2", "9", "3", "2", "1", "5", "1", "9"};
+		double[] values = new double[]{1, 2, -5, 3, 4, 2, 9};
 		Map mapValue = main.test(values);
 
 		for(Object s : mapValue.keySet()){
