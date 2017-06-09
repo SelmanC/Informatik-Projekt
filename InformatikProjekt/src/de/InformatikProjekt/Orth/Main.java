@@ -20,18 +20,19 @@ public class Main implements InlineUserClassWorkerIF {
 
 	private InlineUserClassParentIF parent = null;
 
-	private static int[] classes = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	private Map calculatedValue = new HashMap<Integer, Integer>();
-	private List<String> lines = new ArrayList<>();
+	private static int[] classes = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	private Map calculatedValue = null;
+	private List<String> lines = null;
 
 	@Override
 	public void init(InlineUserClassParentIF parent) {
 		this.parent = parent;
-
 	}
 
 	@Override
 	public void validate() {
+		calculatedValue = new HashMap<Integer, Integer>();
+		lines = new ArrayList<>();
 		jbDataObjectIF[] inputObjects = parent.getInputObjects();
 		jbDataObjectIF[] resultObjects = parent.getResultObjects();
 
@@ -50,9 +51,10 @@ public class Main implements InlineUserClassWorkerIF {
 
 		Map<Integer, Integer> calculatedMap = (Map<Integer, Integer>) calculate(values.toArray());
 
+		resultChannel.adaptMaxValues(calculatedMap.size());
 
 		lines.add("Calculated");
-		Path file = Paths.get("C:/Users/Selman/Desktop/log1.txt");
+		Path file = Paths.get("C:/Users/nabiz_000/Desktop/log1.txt");
 		try {
 			Files.write(file, lines, Charset.forName("UTF-8"));
 		} catch (IOException e) {
@@ -61,10 +63,12 @@ public class Main implements InlineUserClassWorkerIF {
 		}
 		lines.clear();
 		for (int key : calculatedMap.keySet()) {
-			lines.add(key + ":" + calculatedMap.get(key));
-			//resultChannel.setValue(key, calculatedMap.get(key));
+			double value = (double)calculatedMap.get(key);
+			lines.add(key + ":" + (double)value);
+			resultChannel.setValue(key, value);
 		}
-		Path file2 = Paths.get("C:/Users/Selman/Desktop/log2.txt");
+		
+		Path file2 = Paths.get("C:/Users/nabiz_000/Desktop/log2.txt");
 		try {
 			Files.write(file2, lines, Charset.forName("UTF-8"));
 		} catch (IOException f) {
@@ -72,6 +76,9 @@ public class Main implements InlineUserClassWorkerIF {
 			f.printStackTrace();
 		}
 		
+		resultChannel.setUsedSize(calculatedMap.size(), true);
+		calculatedValue= null;
+		lines = null;
 	}
 
 	public Map<Integer, Integer> test(Object[] values) {
@@ -84,7 +91,10 @@ public class Main implements InlineUserClassWorkerIF {
 	}
 
 	private Map calculate(Object[] values) {
+		String line = "";
 		for (int i = 1; i < values.length; i++) {
+			lines.add(line);
+			line = "";
 			if (values[i - 1].toString().isEmpty() || values[i].toString().isEmpty()) {
 				continue;
 			}
@@ -94,8 +104,8 @@ public class Main implements InlineUserClassWorkerIF {
 			String newString = values[i].toString()
 					.replace(".", "")
 					.replace(',', '.');
-
-			lines.add(values[i].toString() + ":" + newString);
+			
+			line+= "oldStr:" + oldString + ";newStr:" + newString + ";";
 
 			if (oldString.isEmpty() || newString.isEmpty()) {
 				continue;
@@ -104,11 +114,18 @@ public class Main implements InlineUserClassWorkerIF {
 			double oldValue = values[i - 1] instanceof String ? Double.valueOf(oldString) : (double) values[i - 1],
 					newValue = values[i] instanceof String ? Double.valueOf(newString) : (double) values[i];
 			int[] oldBounds = getCurrentBounds(oldValue, newValue);
+			
+			line+= "oldValue:" + oldValue + "newValue:"+ newValue +";";
 			if (oldBounds == null)
 				continue;
+			
+			line+= "oldBounds:" + oldBounds[0] + "," + oldBounds[1] + "," + oldBounds[2] +  ";";
 			Map<Integer, Integer> newClassCrossed = getCrossedClassesAfterUpperBound(oldBounds[2], newValue);
+			line += "ClassCrossed:";
 			for (Object crossedClass : newClassCrossed.keySet()) {
-				calculatedValue.put((int) crossedClass, getNewValueForClass((int) crossedClass));
+				int newValueForClass = getNewValueForClass((int) crossedClass); 
+				calculatedValue.put((int) crossedClass, newValueForClass);
+				line+= crossedClass.toString() + "-" + newValueForClass + ",";
 			}
 		}
 		// calculatedList = getListFromCalculatedValue();
@@ -116,6 +133,9 @@ public class Main implements InlineUserClassWorkerIF {
 	}
 
 	private int[] getCurrentBounds(double oldValue, double newValue) {
+		if(oldValue < classes[0] && newValue >= classes[0]){
+			return new int[] { (int) classes[1], (int) classes[0], 0};
+		}
 		for (int i = 1; i < classes.length; i++) {
 			int upperBound = classes[i], lowerBound = classes[i - 1];
 			if (lowerBound <= oldValue && oldValue < upperBound) {
