@@ -1,6 +1,10 @@
 package de.InformatikProjekt.Orth;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import com.AMS.jBEAM.AbstractNumericChannel;
 import com.AMS.jBEAM.DoubleChannel;
@@ -23,9 +28,10 @@ public class Main implements InlineUserClassWorkerIF {
 	private static int[] classes;
 	private Map calculatedValue = null;
 	private List<String> lines = null;
-	private static double maxValue = 0;
-	private static double minValue = 0;
-	private static final int CLASS_RANGE = 5;
+	private static double maxValue;
+	private static final String propertyFileName = "C:/Users/Selman/Desktop/KGUZProp.properties";
+	private static int CLASS_Count;
+	private static boolean isAufwaerts;
 
 	@Override
 	public void init(InlineUserClassParentIF parent) {
@@ -34,8 +40,10 @@ public class Main implements InlineUserClassWorkerIF {
 
 	@Override
 	public void validate() {
+		maxValue = 0;
 		calculatedValue = new HashMap<Integer, Integer>();
 		lines = new ArrayList<>();
+
 		jbDataObjectIF[] inputObjects = parent.getInputObjects();
 		jbDataObjectIF[] resultObjects = parent.getResultObjects();
 
@@ -46,137 +54,177 @@ public class Main implements InlineUserClassWorkerIF {
 		if (resultChannel == null || inputChannel == null) {
 			return;
 		}
+
+		loadPropertieFile();
 		
-		double[] values = getValues(inputChannel);	
+		double[] values = getValues(inputChannel);
 
 		classes = getClasses();
-		
 		Map<Integer, Integer> calculatedMap = (Map<Integer, Integer>) calculate(values);
 
-		resultChannel.adaptMaxValues(10);
+		resultChannel.adaptMaxValues(classes[classes.length - 1]);
 
-		lines.add("Calculated");
-		Path file = Paths.get("C:/Users/nabiz_000/Desktop/log1.txt");
-		try {
-			Files.write(file, lines, Charset.forName("UTF-8"));
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		lines.clear();
 		for (int key : calculatedMap.keySet()) {
 			double value = (double) calculatedMap.get(key);
-			lines.add(key + ":" + (double) value);
+			lines.add(key +":" +value + "");
 			resultChannel.setValue(key, value);
 		}
-		
-		lines.add("KeySetCOunt:" + calculatedMap.size());
-		Path file2 = Paths.get("C:/Users/nabiz_000/Desktop/log2.txt");
+
+		Path p = Paths.get("C:/Users/Selman/Desktop/log2.txt");
+
 		try {
-			Files.write(file2, lines, Charset.forName("UTF-8"));
-		} catch (IOException f) {
-			// TODO Auto-generated catch block
-			f.printStackTrace();
+			Files.write(p, lines, Charset.forName("UTF-8"));
+		} catch (Exception e) {
+			return;
 		}
 
-		resultChannel.setUsedSize(10, true);
+		resultChannel.setUsedSize(classes[classes.length - 1], true);
 		calculatedValue = null;
 		lines = null;
 	}
 
-	public Map<Integer, Integer> test(double[] values) {
-		return (Map<Integer, Integer>) calculate(values);
+	private void loadPropertieFile() {
+
+		Properties prop = new Properties();
+
+		if (!Files.exists(Paths.get(propertyFileName))) {
+			prop.setProperty("class_count", "20");
+			prop.setProperty("aufwaerts", "true");
+			
+			FileOutputStream propertyFile = null;
+			try {
+				propertyFile = new FileOutputStream(propertyFileName);
+				prop.store(propertyFile, null);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			finally{
+				try {
+					propertyFile.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+		} 
+		else {
+			InputStream input = null;
+			
+			try {
+				input = new FileInputStream(propertyFileName);
+				prop.load(input);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			finally{
+				try {
+					input.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+		}
+		
+		CLASS_Count = Integer.valueOf(prop.getProperty("class_count"));
+		isAufwaerts = Boolean.valueOf(prop.getProperty("aufwaerts"));
+		
+		
 	}
 
-	@Override
-	public void dispose() {
-		parent = null;
-	}
-	
-	private double[] getValues(AbstractNumericChannel inputChannel){
+	private double[] getValues(AbstractNumericChannel inputChannel) {
 		double[] values = new double[inputChannel.getUsedSize()];
-		
+
 		for (int i = 0; i < inputChannel.getUsedSize(); i++) {
 			String inputValue = inputChannel.getValueAsString(i).replace(".", "").replace(',', '.');
-			if(inputValue.isEmpty()){
+			if (inputValue.isEmpty()) {
 				continue;
 			}
 
 			double currentValue = Double.valueOf(inputValue);
-			if (i == 0) {
-				maxValue = currentValue;
-				minValue = currentValue;
-			} else {
-				isMaxOrMinValue(currentValue);
+			if (currentValue < 0) {
+				continue;
 			}
-			values[i]= currentValue;
+			isMaxValue(currentValue);
+			values[i] = currentValue;
 		}
 		return values;
 	}
 
-	private void isMaxOrMinValue(double inputValue) {
+	private void isMaxValue(double inputValue) {
 		if (inputValue > maxValue) {
 			maxValue = inputValue;
-		}
-		if (inputValue < minValue) {
-			minValue = inputValue;
 		}
 	}
 
 	private int[] getClasses() {
-		int maxClassCount = (int)((maxValue - minValue) / CLASS_RANGE);
-		lines.add("macClassC:" + maxClassCount);
-		int[] classes = new int[maxClassCount];
-		classes[0] = (int) (minValue - 1);
-		classes[maxClassCount - 1] =(int) maxValue;
-		
-		int currentValue = (int)minValue- 1;
-		for(int i = 0; i < maxClassCount; i++){
-			currentValue = currentValue + CLASS_RANGE;
-			lines.add(currentValue+ ",");
+		double classRange = maxValue / CLASS_Count;
+		int[] classes = new int[CLASS_Count];
+		classes[0] = 0;
+		classes[CLASS_Count - 1] = (int) maxValue + 1;
+
+		int currentValue = 0;
+		for (int i = 1; i < CLASS_Count - 2; i++) {
+			currentValue = (int) (currentValue + classRange);
 			classes[i] = currentValue;
 		}
-		lines.add(";max:" + maxValue);
 		return classes;
 	}
 
 	private Map calculate(double[] values) {
-		String line = "";
 		for (int i = 1; i < values.length; i++) {
-			lines.add(line);
-			line = "";
 
 			double oldValue = values[i - 1], newValue = values[i];
 			int[] oldBounds = getCurrentBounds(oldValue, newValue);
-
-			line += "oldValue:" + oldValue + "newValue:" + newValue + ";";
 			if (oldBounds == null)
 				continue;
 
-			line += "oldBounds:" + oldBounds[0] + "," + oldBounds[1] + "," + oldBounds[2] + ";";
-			Map<Integer, Integer> newClassCrossed = getCrossedClassesAfterUpperBound(oldBounds[2], newValue);
-			line += "ClassCrossed:";
+			Map<Integer, Integer> newClassCrossed = new HashMap<>();
+			if(isAufwaerts){
+				newClassCrossed = getCrossedClassesAfterUpperBound(oldBounds[2], newValue);
+			}
+			else{
+				newClassCrossed = getCrossedClassesBeforeLowerBound(oldBounds[2], newValue);
+			}
 			for (Integer crossedClass : newClassCrossed.keySet()) {
 				int newValueForClass = getNewValueForClass(crossedClass);
 				calculatedValue.put(crossedClass, newValueForClass);
-				line += crossedClass.toString() + "-" + newValueForClass + ",";
 			}
 		}
 		return calculatedValue;
 	}
 
 	private int[] getCurrentBounds(double oldValue, double newValue) {
-		if (oldValue < classes[0] && newValue >= classes[0]) {
-			return new int[] {classes[1], classes[0], 0 };
+		if (isNotInClassRange(oldValue, newValue)) {
+			return new int[] { classes[1], classes[0], isAufwaerts ? 1 : 0};
 		}
 		for (int i = 1; i < classes.length; i++) {
 			double upperBound = classes[i], lowerBound = classes[i - 1];
-			if (lowerBound <= oldValue && oldValue < upperBound) {
-				return new int[] {classes[i], classes[i - 1], i };
+			if (isClassBoundsCrossed(oldValue, lowerBound, upperBound)) {
+				return new int[] { classes[i], classes[i - 1], isAufwaerts ? i : i-1 };
 			}
 		}
 		return null;
+	}
+
+	private boolean isNotInClassRange(double oldValue, double newValue) {
+		if (isAufwaerts) {
+			return oldValue < classes[0] && newValue >= classes[0];
+		} else {
+			return oldValue <= classes[0] && newValue > classes[0];
+		}
+	}
+
+	private boolean isClassBoundsCrossed(double oldValue, double lowerBound, double upperBound) {
+		if (isAufwaerts) {
+			return lowerBound <= oldValue && oldValue < upperBound;
+		} else {
+			return lowerBound < oldValue && oldValue <= upperBound;
+		}
 	}
 
 	private Map<Integer, Integer> getCrossedClassesAfterUpperBound(int upperBoundCound, double newValue) {
@@ -190,26 +238,29 @@ public class Main implements InlineUserClassWorkerIF {
 		}
 		return crossedClasses;
 	}
+	
+	private Map<Integer, Integer> getCrossedClassesBeforeLowerBound(int lowerBoundCound, double newValue) {
+		Map<Integer, Integer> crossedClasses = new HashMap<>();
+		for (int i = lowerBoundCound; i > 0; i--) {
+			if (newValue <= classes[i]) {
+				crossedClasses.put(classes[i], getNewValueForClass(classes[i]));
+			} else {
+				break;
+			}
+		}
+		return crossedClasses;
+	}
 
 	private int getNewValueForClass(int currentClass) {
 		return (int) calculatedValue.getOrDefault(currentClass, 0) + 1;
 	}
-
-	private List getListFromCalculatedValue() {
-		List<List> calculatedList = new ArrayList<>();
-		for (Object key : calculatedValue.keySet()) {
-			List currentKeyList = getCurrentKeyList((int) key);
-			calculatedList.add(currentKeyList);
-		}
-		return calculatedList;
+	
+	public Map test(double[] values){
+		return calculate(values);
 	}
 
-	private List getCurrentKeyList(int key) {
-		List currentKeyList = new ArrayList<String>();
-		for (int i = 0; i < (int) calculatedValue.get(key); i++) {
-			currentKeyList.add("");
-		}
-		currentKeyList.add(String.valueOf(key));
-		return currentKeyList;
+	@Override
+	public void dispose() {
+		parent = null;
 	}
 }
